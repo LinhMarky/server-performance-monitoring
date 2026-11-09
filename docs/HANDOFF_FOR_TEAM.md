@@ -4,15 +4,18 @@ Website, database và Docker đã tách khỏi công việc benchmark/monitoring
 
 ## 1. Người phụ trách Linux, Docker và Grafana
 
+- Bắt đầu bằng [bốn bước cho máy Linux trong README](../README.md#linux-quickstart). Phần [cấu tạo Web](../README.md#architecture) giải thích mỗi thư mục/file làm gì; chỉ cần sửa `.env` để triển khai thông thường. Node và PostgreSQL chạy trong container.
+- Hướng dẫn cài Docker cụ thể dành cho Ubuntu 22.04/24.04 LTS; dùng được trên máy cá nhân, máy ảo hoặc VPS. Nếu là bản Linux khác, dùng hướng dẫn Docker tương ứng trước khi chạy Compose.
 - Service `web`: một tiến trình Node.js/Express, container port 3000; host port `WEB_PORT` (mặc định 3000), bind mặc định localhost. Bật truy cập máy phát tải bằng WEB_BIND_ADDRESS và firewall như `DEPLOY_UBUNTU.md`.
 - Service `db`: PostgreSQL, DNS `db`, port 5432 trong mạng Docker, không publish. Named volume `<project>_postgres_data` chứa dữ liệu; mount SQL chỉ đọc.
 - Không cố định container_name. Xác định tên thực bằng `docker compose ps`; thường `<project>-web-1`, `<project>-db-1`. `docker compose top` xem tiến trình Node và postgres. Các kết nối Web có `application_name=student-academic-web`.
-- File cần chỉnh theo VPS: `.env` riêng (mật khẩu, bind/port, N, pool). Không chỉnh Dockerfile/SQL/frontend/backend để đổi đường dẫn máy.
+- File cần chỉnh theo máy Linux: `.env` riêng (mật khẩu, bind/port, N, pool). Không chỉnh Dockerfile/SQL/frontend/backend để đổi đường dẫn máy.
 - Khởi động: `docker compose up -d --build --wait`; seed: `bash scripts/seed.sh`; kiểm tra: `bash scripts/functional-check.sh`, `bash scripts/db.sh validate`.
 - Log: `docker compose logs --tail=100 web db`; theo dõi `docker compose logs -f web`; health: `/api/health`.
 - Số liệu phù hợp: CPU, RSS/memory, disk IOPS/latency/space, network, container restart, HTTP throughput/error/latency từ công cụ tải, số connection DB, active queries/waits từ PostgreSQL. `docker stats --no-stream` là kiểm tra nhanh, không thay hệ thống thu thập chính thức.
 - App không cài Prometheus/Grafana/exporter, không có `/metrics`. Người phụ trách monitoring tự tích hợp riêng; giữ phương pháp và overhead như nhau trong hai trạng thái. Healthcheck định kỳ vẫn chạy giống nhau trước/sau.
 - Backup/restore xem README. Git không chứa volume; chuyển máy phải seed lại hoặc restore.
+- Nếu mở ngay trên máy Linux, dùng localhost. Nếu gửi địa chỉ cho máy khác cùng mạng, dùng IP LAN của máy Linux và cấu hình bind/firewall; nếu là VPS, dùng public IP. Không gửi localhost cho người chạy k6 trên máy khác.
 
 ## 2. Người phụ trách k6
 

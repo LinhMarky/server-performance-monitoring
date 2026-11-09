@@ -1,6 +1,10 @@
-# Triển khai trên Ubuntu Linux VPS
+# Triển khai trên máy Ubuntu Linux
 
-Hướng dẫn cho Ubuntu Server 24.04 LTS/22.04 LTS 64-bit. Các bước cài package dưới đây đối chiếu với [Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/) ngày 09/11/2026. Nếu dùng release khác, kiểm tra danh sách hỗ trợ trong tài liệu chính thức trước khi cài.
+Hướng dẫn cho Ubuntu 24.04 LTS/22.04 LTS 64-bit, trên máy cá nhân có giao diện, máy ảo hoặc Server/VPS. Thực hiện các lệnh trong Terminal của máy Linux nhận bàn giao. Không yêu cầu MacBook, Docker Desktop hoặc cài Node.js/PostgreSQL riêng trên host.
+
+Để có lộ trình ngắn và hiểu vai trò từng file, đọc [phần bắt đầu trên Linux trong README](../README.md#linux-quickstart). Tài liệu này giải thích chi tiết cài Docker và mạng.
+
+Các bước cài package dưới đây đối chiếu với [Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/) ngày 09/11/2026. Nếu dùng bản Linux khác, kiểm tra `cat /etc/os-release` và chọn [hướng dẫn đúng hệ điều hành](https://docs.docker.com/engine/install/); không thêm repository Ubuntu trên Debian/Fedora. Khi Docker Engine và Compose Plugin đã sẵn sàng, dùng các bước clone/build/seed của dự án.
 
 ## 1. Kiểm tra máy
 
@@ -17,7 +21,7 @@ Khuyến nghị khởi đầu, **chưa phải cấu hình đã benchmark**: 2–
 
 ## 2. Cài Docker Engine và Compose Plugin
 
-Trên VPS mới, kiểm tra các package có thể xung đột:
+Trên máy Ubuntu, kiểm tra các package có thể xung đột:
 
 ```bash
 dpkg -l docker.io docker-compose docker-compose-v2 docker-doc docker-buildx podman-docker containerd runc
@@ -27,7 +31,7 @@ Nếu chúng đã tồn tại, kiểm tra workload hiện có và làm theo mụ
 
 ```bash
 sudo apt update
-sudo apt install -y ca-certificates curl git
+sudo apt install -y ca-certificates curl git openssl nano
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -52,13 +56,13 @@ sudo docker info
 
 Dùng Compose Plugin (`docker compose`), không cần cài binary Python `docker-compose`. Docker daemon phải báo Server version. Nếu chỉ có Client hoặc Cannot connect, kiểm tra `sudo journalctl -u docker --no-pager -n 100`.
 
-Mặc định có thể cần `sudo docker`. Nếu muốn chạy không sudo, chỉ cấp quyền cho tài khoản tin cậy:
+Các script seed/kiểm tra gọi `docker` trực tiếp. Để chạy đúng các lệnh phía dưới bằng tài khoản triển khai, chỉ cấp quyền nhóm Docker cho tài khoản tin cậy:
 
 ```bash
 sudo usermod -aG docker "$USER"
 ```
 
-Đăng xuất SSH rồi đăng nhập lại; kiểm tra `id -nG` và `docker info`. Thành viên nhóm `docker` có quyền tương đương root trên host, không cấp cho tài khoản không tin cậy và không `chmod 666 /var/run/docker.sock`. Nếu vẫn dùng sudo, thay các lệnh Docker bằng `sudo docker`; để chạy script wrapper cần shell có quyền Docker. Xem [Linux post-install](https://docs.docker.com/engine/install/linux-postinstall/).
+Đăng xuất rồi đăng nhập lại phiên desktop hoặc SSH. Kiểm tra `id -nG` và `docker info`; chỉ tiếp tục khi `docker info` thành công không cần sudo. Việc này cũng cấp đủ quyền cho những lệnh Docker nằm bên trong script. Thành viên nhóm `docker` có quyền tương đương root trên host, không cấp cho tài khoản không tin cậy và không `chmod 666 /var/run/docker.sock`. Xem [Linux post-install](https://docs.docker.com/engine/install/linux-postinstall/).
 
 ## 3. Clone và cấu hình
 
@@ -73,10 +77,14 @@ nano .env
 
 Lệnh clone chọn đúng nhánh Web mẫu trong repo nhóm. Dán chuỗi ngẫu nhiên vào `POSTGRES_PASSWORD`; không dùng nguyên giá trị placeholder. `DB_HOST=db`, `DB_PORT=5432`; DB không phải localhost của Web. Đặt `STUDENT_COUNT=200000`, `DB_POOL_MAX=10` để bắt đầu. Không commit .env.
 
-Để chỉ dùng SSH tunnel, giữ `WEB_BIND_ADDRESS=127.0.0.1`. Từ máy cá nhân:
+Trong nano, lưu bằng Ctrl+O, Enter, rồi thoát Ctrl+X. Nếu `.env` đã tồn tại, sửa file đó, không chạy lại lệnh copy đè lên cấu hình đang dùng.
+
+**Nếu mở Web ngay trên máy Linux này:** giữ `WEB_BIND_ADDRESS=127.0.0.1` và mở `http://localhost:3000` sau khi hoàn thành bước 4. Không cần SSH tunnel.
+
+**Nếu máy Linux là server chỉ truy cập qua SSH:** có thể giữ bind localhost và mở tunnel từ máy có trình duyệt. Thay USER/IP_LINUX bằng tài khoản và địa chỉ thực:
 
 ```bash
-ssh -L 3000:127.0.0.1:3000 USER@IP_VPS
+ssh -L 3000:127.0.0.1:3000 USER@IP_LINUX
 ```
 
 Sau đó mở localhost:3000 ở máy cá nhân. Nếu muốn HTTP trực tiếp từ máy phát tải khác, đặt `WEB_BIND_ADDRESS=0.0.0.0`, giữ/chọn `WEB_PORT`, chỉ cho phép IP cần thiết qua firewall của nhà cung cấp và quy tắc Docker phù hợp. Xem phần mạng bên dưới.
@@ -95,7 +103,9 @@ bash scripts/functional-check.sh
 curl -fsS http://127.0.0.1:3000/api/health
 ```
 
-Seed chỉ chạy bằng lệnh riêng. Đợi dòng `Seed committed successfully` và wrapper báo file mã sẵn sàng, kiểm tra số lượng; không benchmark khi seed/ANALYZE/validate đang chạy. Không copy node_modules hoặc Docker volume từ Mac. Image chính thức chọn kiến trúc native; không ép linux/amd64 trên Apple Silicon.
+Seed chỉ chạy bằng lệnh riêng. Đợi dòng `Seed committed successfully` và wrapper báo file mã sẵn sàng, kiểm tra số lượng; không benchmark khi seed/ANALYZE/validate đang chạy. Docker build từ source trên máy nhận, tự chọn image phù hợp kiến trúc; không chép node_modules hay Docker volume từ máy phát triển.
+
+Hoàn thành khi hai service healthy, SQL validate PASS, functional check báo 8 nhóm đạt và stats có 200.000 sinh viên/40 môn/1.200.000 điểm. Khi bật lại sau này, chỉ chạy `docker compose up -d --wait`; không seed lại DB đã có dữ liệu.
 
 ## 5. Truy cập mạng và kiểm tra firewall
 
@@ -107,9 +117,11 @@ docker compose port web 3000
 sudo ufw status verbose
 ```
 
-IP công khai xem ở control panel VPS, `hostname -I` có thể chỉ là IP riêng. Nếu `WEB_PORT=3000` và đã mở truy cập đúng phạm vi, URL là `http://IP_VPS:3000`. Nếu từ xa không được:
+Nếu dùng máy Linux trong mạng nội bộ, lấy IP LAN bằng `hostname -I`, ví dụ `192.168.1.50`; máy cùng mạng truy cập `http://192.168.1.50:3000` sau khi đặt `WEB_BIND_ADDRESS=0.0.0.0`, chạy `docker compose up -d` và cho phép cổng HTTP từ máy nguồn. Đây chỉ là IP ví dụ, phải dùng IP thực của máy Linux. IP LAN không tự truy cập được từ Internet.
 
-1. Curl localhost trên VPS để tách lỗi ứng dụng khỏi lỗi mạng.
+Nếu dùng VPS, IP công khai xem ở control panel nhà cung cấp, `hostname -I` có thể chỉ là IP riêng. Nếu `WEB_PORT=3000` và đã mở truy cập đúng phạm vi, URL là `http://IP_VPS:3000`. Nếu từ xa không được:
+
+1. Curl localhost trên chính máy Linux chạy Docker để tách lỗi ứng dụng khỏi lỗi mạng.
 2. Kiểm tra `docker compose ps`, logs và port mapping.
 3. Kiểm tra WEB_BIND_ADDRESS; `127.0.0.1` cố ý chặn truy cập trực tiếp từ xa. Sửa .env rồi `docker compose up -d` để áp dụng; `restart` không nạp lại cấu hình.
 4. Kiểm tra firewall/security group phía nhà cung cấp, IP đúng và quy tắc mạng Docker.

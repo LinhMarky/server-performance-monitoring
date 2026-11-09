@@ -10,6 +10,65 @@ Giao diện tiếng Việt có dashboard, danh sách phân trang, tra cứu mã 
 
 Không chứa k6/Locust, Prometheus, Grafana, Node Exporter, AI chẩn đoán, phân tích tải hay báo cáo benchmark chính thức. Các thành viên tiếp nhận qua [tài liệu bàn giao](docs/HANDOFF_FOR_TEAM.md) và [API](docs/API_REFERENCE.md).
 
+<a id="linux-quickstart"></a>
+
+## Dành cho người nhận dự án trên máy Linux — bắt đầu tại đây
+
+**Máy triển khai của người nhận là Linux.** Các bước dưới đây dùng được cho máy Ubuntu có giao diện hoặc Ubuntu Server/VPS. Mac chỉ là máy phát triển ban đầu, không phải yêu cầu của dự án. Bạn không cần chép thư mục Docker hay cài Node.js/PostgreSQL riêng trên máy Linux; Docker tạo hai môi trường chạy này từ source.
+
+Phần cài Docker chi tiết viết cho **Ubuntu 22.04/24.04 LTS 64-bit**. Chạy `cat /etc/os-release` để biết bản Linux đang dùng. Nếu là Debian, Fedora hoặc bản khác, chọn [hướng dẫn Docker đúng hệ điều hành](https://docs.docker.com/engine/install/) thay vì chạy các lệnh thêm repository Ubuntu; sau khi Docker và Compose đã sẵn sàng, tiếp tục các bước clone/build/seed trong tài liệu này.
+
+### Bước 1 — Chuẩn bị Docker trên máy Linux
+
+Làm theo [mục 2: cài đặt và quyền chạy Docker](#linux-prerequisites). Chỉ chuyển sang bước 2 khi `docker info` chạy được bằng tài khoản hiện tại và `docker compose version` trả phiên bản. Các lệnh dưới đây chạy trong Terminal của **máy Linux sẽ chứa Website**; không cần chạy trên máy Mac của người viết.
+
+### Bước 2 — Tải code và tạo cấu hình riêng
+
+```bash
+git clone --branch codex/student-academic-management https://github.com/LinhMarky/server-performance-monitoring.git student-performance-system
+cd student-performance-system
+cp .env.example .env
+chmod 600 .env
+openssl rand -hex 32
+nano .env
+```
+
+Dán chuỗi vừa sinh vào dòng `POSTGRES_PASSWORD=`, thay toàn bộ `CHANGE_ME_TO_A_STRONG_PASSWORD`. Trong nano, lưu bằng **Ctrl+O**, **Enter**, rồi thoát **Ctrl+X**. Lần chạy đầu giữ các giá trị còn lại: `DB_HOST=db`, `STUDENT_COUNT=200000`, `DB_POOL_MAX=10`, `WEB_PORT=3000`, `WEB_BIND_ADDRESS=127.0.0.1`. Xem ý nghĩa từng biến ở [mục 3](#clone-and-configure).
+
+Đây là quy trình cho máy mới. Nếu thư mục hoặc `.env` đã tồn tại, dùng lại cấu hình hiện có, không clone hay chép đè `.env` lần nữa.
+
+### Bước 3 — Khởi động, tạo dữ liệu và kiểm tra
+
+Chạy lần lượt tại thư mục `student-performance-system`. Nếu một lệnh lỗi, xử lý lỗi đó trước khi chạy lệnh tiếp theo.
+
+```bash
+docker compose config --quiet
+docker compose up -d --build --wait --wait-timeout 180
+docker compose ps
+bash scripts/seed.sh
+bash scripts/db.sh validate
+bash scripts/functional-check.sh
+curl -fsS http://127.0.0.1:3000/api/stats
+```
+
+Kết quả cần thấy: hai service `web`, `db` healthy; seed báo thành công; validate báo PASS; functional check báo **8 nhóm đạt**; API stats trả:
+
+```json
+{"total_students":200000,"total_subjects":40,"total_grades":1200000}
+```
+
+Seed chỉ chạy một lần cho DB mới. Những lần bật lại dùng `docker compose up -d --wait`; không seed lại. Nếu đã có dữ liệu, script seed từ chối ghi đè là hành vi đúng. [Mục 5](#seed-and-check) giải thích cách đổi quy mô/reset có chủ đích; [mục 10](#troubleshooting) xử lý lỗi thường gặp.
+
+### Bước 4 — Mở Web và bàn giao cho người kiểm thử
+
+Mở `http://localhost:3000` **trên chính máy Linux vừa chạy Docker**. Thử mã `SV0150000`, rồi chọn Xem bảng điểm. Nếu dùng máy khác để xem Web hoặc chạy k6, làm theo [mục truy cập mạng](#linux-network) để chọn IP/bind/firewall; localhost trên máy khác không trỏ về máy Linux này.
+
+Khi các bước trên đạt, gửi nhóm địa chỉ Web/API và `benchmark-data/student-codes.json`. Endpoint tải chính là `GET /api/students/search?code=SV0150000`. Giữ BASELINE, chưa chạy create-index trước khi nhóm đo xong lượt ban đầu.
+
+**Muốn hiểu code trước khi vận hành:** đọc [cấu tạo và vai trò từng file](#architecture) bên dưới. **Chỉ cần triển khai:** hoàn thành bốn bước trên rồi đọc [bàn giao theo vai trò](docs/HANDOFF_FOR_TEAM.md). Các mục còn lại là tài liệu tra cứu khi cần đổi cấu hình, backup hoặc kiểm tra index.
+
+<a id="architecture"></a>
+
 ## 1. Kiến trúc và cấu trúc
 
 ```mermaid
@@ -21,8 +80,32 @@ flowchart LR
 
 Hai container `web`, `db` cùng mạng Compose. Express phục vụ frontend lẫn API; DB không publish cổng ra host/Internet. Volume giữ dữ liệu độc lập với image Web. Không seed, xóa dữ liệu hoặc tạo index tìm kiếm khi khởi động/restart.
 
+### Web hoạt động như thế nào?
+
+Khi người dùng nhập mã `SV0150000`, JavaScript trong trình duyệt gửi Fetch đến `/api/students/search?code=SV0150000`. Express kiểm tra mã, dùng connection pool gửi một câu SELECT đến PostgreSQL, rồi trả JSON. JavaScript dùng JSON đó để hiển thị hồ sơ và thời gian phản hồi. Khi người dùng chọn bảng điểm, một API khác đọc thêm `grades` và `subjects` để trả các điểm và GPA.
+
+Database có ba bảng: `students` lưu hồ sơ; `subjects` lưu tên môn và tín chỉ; `grades` nối sinh viên với môn học, lưu điểm và học kỳ. Số liệu không nằm cứng trong HTML. PostgreSQL giữ dữ liệu trong named volume, còn source trong Git chỉ chứa schema và công thức seed.
+
+| Thành phần/file | Nhiệm vụ | Người triển khai Linux cần làm gì? |
+|---|---|---|
+| `frontend/index.html`, `styles.css`, `app.js` | Bố cục, giao diện, điều hướng và gọi API | Docker phục vụ sẵn, không cần build frontend riêng |
+| `backend/src/server.js` | Mở HTTP server và đóng kết nối khi dừng | Không cần sửa để đổi hệ điều hành |
+| `backend/src/app.js`, `routes/` | Phục vụ frontend, nhận request, trả JSON | Xem API_REFERENCE để biết endpoint |
+| `backend/src/db.js`, `config/` | Tạo pool và đọc biến cấu hình DB | Cấu hình qua `.env` |
+| `database/schema.sql`, `seed.sql` | Tạo bảng và sinh dữ liệu lớn bằng SQL | Schema tạo lúc volume mới; seed bằng lệnh riêng |
+| `database/explain.sql`, `create-index.sql`, `drop-index.sql` | Kiểm tra plan và chuyển trạng thái index | Chỉ chạy theo kế hoạch thí nghiệm của nhóm |
+| `Dockerfile` | Đóng gói Node, dependencies, Backend và Frontend thành image Web | Build bằng Docker Compose |
+| `docker-compose.yml` | Kết nối hai service, cổng, healthcheck và volume | Thông thường giữ nguyên file này |
+| `.env.example` / `.env` | Mẫu cấu hình / cấu hình riêng của máy nhận | Copy một lần, sửa mật khẩu và tùy chọn cần thiết trong `.env` |
+| `scripts/seed.sh`, `db.sh`, `functional-check.sh` | Các lệnh vận hành và kiểm tra có sẵn | Chạy bằng `bash scripts/...` như hướng dẫn |
+| `benchmark-data/student-codes.json` | Các mã có thật trong bộ dữ liệu đã seed | Gửi cho người viết workload, giữ nguyên trước/sau |
+
+**Để đưa Web sang Linux, thông thường chỉ cần sửa `.env`.** Không phải đổi đường dẫn trong source, sửa Backend hay cài lại PostgreSQL bằng apt. Thư mục `/app` và hostname `db` trong cấu hình thuộc container, không phải thư mục/tên máy của người viết.
+
+### Cây thư mục để tra cứu
+
 ```text
-WEBCNNT/
+student-performance-system/
 ├── backend/
 │   ├── src/{app.js,server.js,db.js}
 │   ├── src/config/index.js
@@ -46,17 +129,18 @@ WEBCNNT/
 
 Tên thư mục clone tùy bạn; mọi lệnh bên dưới chạy tại thư mục có `docker-compose.yml`. [Kiến trúc chi tiết](docs/ARCHITECTURE.md), [database](docs/DATABASE_DESIGN.md).
 
-## 2. Máy cần chuẩn bị
+<a id="linux-prerequisites"></a>
+
+## 2. Chuẩn bị máy Linux và cài Docker
 
 | Môi trường | Khuyến nghị ban đầu, chưa phải cam kết hiệu năng |
 |---|---|
-| Mac phát triển | Apple Silicon hoặc Intel, RAM máy 8 GB trở lên; dành khoảng 4 GB cho Docker Desktop |
-| Ubuntu VPS | 2–4 vCPU, RAM từ 4 GB, Ubuntu Server 24.04/22.04 LTS 64-bit |
+| Máy Linux nhận bàn giao | 2–4 CPU/vCPU, RAM từ 4 GB, Ubuntu 24.04/22.04 LTS 64-bit; máy cá nhân, máy ảo hoặc VPS |
 | Đĩa trống | 15–20 GB trở lên cho image, DB, WAL, log và backup; tăng dự phòng khi dùng 1 triệu sinh viên |
 
 Seed 1,4 triệu bản ghi cần thời gian và tài nguyên tùy máy. Không khẳng định chạy tốt trên VPS chưa kiểm chứng; xem kết quả thực tế trong [TEST_RESULTS](docs/TEST_RESULTS.md). Image Node/PostgreSQL hỗ trợ ARM64 và AMD64; Compose không ép emulation. Không đặt CPU/RAM limit trong cấu hình; nhóm phải ghi lại và giữ nguyên tài nguyên khi đo.
 
-Mac: mở Docker Desktop và chạy `docker version`, `docker compose version`. Ubuntu: xem [hướng dẫn cài chính thức bằng apt repository](docs/DEPLOY_UBUNTU.md), có bước kiểm tra OS/CPU/RAM/đĩa, GPG key, Docker Engine, Compose Plugin, daemon và quyền Docker. Không dùng hướng dẫn cài `docker-compose` cũ. Nhóm `docker` có quyền tương đương root, chỉ cấp cho tài khoản tin cậy.
+Trên Linux, cài **Docker Engine và Docker Compose Plugin** theo các bước dưới đây; không cần Docker Desktop. Docker cài Node.js và PostgreSQL bên trong container khi build/chạy dự án. Node 24 trên host chỉ cần nếu muốn chạy bộ unit test Backend riêng ngoài Docker. Nhóm `docker` có quyền tương đương root, chỉ cấp cho tài khoản tin cậy. [Hướng dẫn Ubuntu riêng](docs/DEPLOY_UBUNTU.md) trình bày đầy đủ các bước và lỗi mạng.
 
 ### Cài nhanh Docker trên Ubuntu Server mới
 
@@ -74,7 +158,7 @@ Nếu đã có Docker/containerd hoặc workload khác, xem mục xử lý packa
 
 ```bash
 sudo apt update
-sudo apt install -y ca-certificates curl git
+sudo apt install -y ca-certificates curl git openssl nano
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -95,7 +179,7 @@ sudo docker compose version
 sudo docker info
 ```
 
-Nếu cần chạy các script không sudo, cấp quyền nhóm Docker cho tài khoản tin cậy rồi đăng xuất/đăng nhập SSH lại:
+Các script seed/kiểm tra gọi `docker` trực tiếp. Để dùng các lệnh đúng như tài liệu, cấp quyền nhóm Docker cho tài khoản triển khai tin cậy rồi đăng xuất/đăng nhập lại (phiên desktop hoặc SSH, tùy cách bạn dùng máy):
 
 ```bash
 sudo usermod -aG docker "$USER"
@@ -104,7 +188,9 @@ id -nG
 docker info
 ```
 
-Không cấp quyền nhóm Docker cho người lạ, không mở socket Docker cho mọi user. Nếu daemon chưa chạy, xem `sudo journalctl -u docker --no-pager -n 100`. Hướng dẫn đối chiếu [Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/); cài đặt trên VPS thật vẫn cần quản trị viên kiểm tra phiên bản OS và firewall.
+Chỉ tiếp tục khi `docker info` thành công không cần sudo; như vậy cả các script gọi Docker bên trong đều có quyền. Không cấp quyền nhóm Docker cho người lạ, không mở socket Docker cho mọi user. Nếu daemon chưa chạy, xem `sudo journalctl -u docker --no-pager -n 100`. Hướng dẫn đối chiếu [Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/); khi triển khai thật vẫn cần kiểm tra phiên bản OS và firewall.
+
+<a id="clone-and-configure"></a>
 
 ## 3. Clone và cấu hình môi trường
 
@@ -114,6 +200,7 @@ cd student-performance-system
 cp .env.example .env
 chmod 600 .env
 openssl rand -hex 32
+nano .env
 ```
 
 Lệnh trên lấy đúng nhánh Web mẫu của repo nhóm; nếu đã có workspace thì không clone lại. Mở `.env` bằng trình soạn thảo, dán chuỗi ngẫu nhiên vào `POSTGRES_PASSWORD`. Placeholder bị Backend từ chối. Không commit/chia sẻ `.env` thật; `.gitignore` và `.dockerignore` đã loại trừ nó. Nếu `.env` đã tồn tại, sửa file đó, không chép đè khi đang có volume.
@@ -148,6 +235,8 @@ curl -fsS http://localhost:3000/api/health
 Nếu đổi WEB_PORT, thay cổng trong URL. Hai service phải hiện healthy. `db` healthcheck dùng pg_isready, `web` healthcheck gọi API có query DB thật. Lần đầu Docker tải image; `--wait-timeout` chỉ là thời hạn chờ healthy. Có thể xem log trực tiếp bằng `docker compose logs -f web`; Ctrl+C dừng xem log, không dừng server.
 
 Health 200 chỉ chứng minh Backend kết nối DB, chưa chứng minh đã seed. Ứng dụng xử lý mất kết nối DB tạm thời bằng HTTP 503/500 và có thể phục hồi ở request sau. Không trả mật khẩu/stack trace.
+
+<a id="seed-and-check"></a>
 
 ## 5. Tạo schema, seed và kiểm tra dữ liệu
 
@@ -198,9 +287,11 @@ docker compose exec -T web node /app/scripts/generate-benchmark-codes.js 200000 
 
 Hoặc khi có Node 24 ở host: `node scripts/generate-benchmark-codes.js 200000`. JSON là array tối thiểu 100 mã phân bố từ đầu đến cuối; mặc định 106 mã. Chuyển cùng file cho người viết benchmark, giữ nguyên trước/sau.
 
+<a id="linux-network"></a>
+
 ## 6. Sử dụng Website và truy cập từ máy khác
 
-Mở **http://localhost:3000** sau khi seed:
+Mở **http://localhost:3000 trên chính máy Linux chạy Docker** sau khi seed:
 
 1. Tổng quan tải các số COUNT từ DB, cùng danh sách 5 hồ sơ đầu.
 2. Danh sách mặc định 20 dòng/trang, chọn 50/100, bấm mũi tên chuyển trang.
@@ -209,7 +300,15 @@ Mở **http://localhost:3000** sau khi seed:
 
 UI có loading, lỗi, thử lại và không tìm thấy; không dựng hồ sơ giả nếu DB lỗi. Dashboard stats tải một lần mỗi lần mở lại toàn bộ ứng dụng, không COUNT mỗi request search. Không có chức năng thêm/xóa sinh viên, sửa điểm hay quản trị index trên UI.
 
-VPS: dùng public IP từ control panel; `hostname -I` có thể chỉ cho IP riêng. Để truy cập `http://IP_VPS:3000`, cấu hình WEB_BIND_ADDRESS=0.0.0.0, `docker compose up -d`, và cho phép cổng HTTP từ máy phát tải theo [hướng dẫn mạng Ubuntu](docs/DEPLOY_UBUNTU.md). Kiểm tra `docker compose port web 3000`, `sudo ss -lntp`, `sudo ufw status verbose`, firewall nhà cung cấp. Docker publish có thể bypass ufw; không mở PostgreSQL ra Internet. Có thể giữ localhost và dùng SSH tunnel nếu chỉ xem giao diện.
+| Nơi mở trình duyệt/chạy công cụ tải | Cấu hình và địa chỉ sử dụng |
+|---|---|
+| Trên cùng máy Linux chạy Docker | Giữ `WEB_BIND_ADDRESS=127.0.0.1`, mở `http://localhost:3000` |
+| Máy khác cùng mạng LAN | Đặt `WEB_BIND_ADDRESS=0.0.0.0`, chạy `docker compose up -d`, lấy IP LAN của máy Linux bằng `hostname -I`, mở `http://IP_LINUX:3000`; firewall phải cho phép máy nguồn |
+| Máy khác truy cập VPS | Đặt bind tương tự và dùng public IP từ control panel VPS; cho phép cổng HTTP từ IP máy nguồn trong firewall nhà cung cấp |
+
+Thay `IP_LINUX` bằng IP thực; `0.0.0.0` là địa chỉ lắng nghe, không phải địa chỉ bạn gửi cho nhóm. `localhost` luôn là máy đang mở trình duyệt, nên trên máy bạn nó không trỏ sang máy Linux của bạn cùng nhóm. Nếu đổi WEB_PORT, thay 3000 trong URL bằng cổng đó.
+
+Xem [hướng dẫn mạng Ubuntu](docs/DEPLOY_UBUNTU.md) để kiểm tra `docker compose port web 3000`, `sudo ss -lntp`, firewall và SSH tunnel. Docker publish có thể bypass ufw; không mở PostgreSQL ra Internet.
 
 ## 7. Kiểm thử chức năng
 
@@ -322,14 +421,16 @@ bash scripts/functional-check.sh
 
 Backup chứa cả index: nếu restore bản OPTIMIZED, đó vẫn là OPTIMIZED. Muốn BASELINE, chạy drop-index rồi validate. Đồng bộ STUDENT_COUNT và sinh lại file mã. Nếu restore lỗi, không tiếp tục benchmark; đọc lỗi, giữ file backup và xử lý trước khi mở lại workload. Plain SQL dump (nếu tự chọn `pg_dump` không `-Fc`) phải khôi phục bằng `psql -v ON_ERROR_STOP=1`, không nhầm định dạng.
 
+<a id="troubleshooting"></a>
+
 ## 10. Lỗi thường gặp
 
 | Hiện tượng | Kiểm tra và xử lý |
 |---|---|
-| Docker daemon chưa chạy | `docker version`, mở Docker Desktop trên Mac; Ubuntu `sudo systemctl start docker`, xem journalctl |
+| Docker daemon chưa chạy trên Linux | `docker version`, `sudo systemctl status docker`; chạy `sudo systemctl start docker`, xem journalctl |
 | Chưa có Compose | `docker compose version`; cài docker-compose-plugin từ repository chính thức, không dùng compose v1 |
 | Permission denied docker.sock | Kiểm tra nhóm bằng `id -nG`, đăng nhập lại sau usermod; hoặc dùng sudo. Không chmod socket công khai |
-| Port 3000 bị chiếm | `lsof -i :3000` (Mac) hoặc `sudo ss -lntp` (Linux); đổi WEB_PORT và chạy up -d |
+| Port 3000 bị chiếm | Trên Linux chạy `sudo ss -lntp`; đổi WEB_PORT và chạy up -d |
 | DB chưa sẵn sàng | `docker compose ps`, logs db; đợi khởi tạo xong; kiểm tra RAM/đĩa, không seed trước health |
 | Web không kết nối DB | DB_HOST=db, port=5432, cùng network; kiểm tra user/db/password trùng env DB; logs web chỉ in mã lỗi an toàn |
 | Sai mật khẩu/đổi env không có hiệu lực | PostgreSQL chỉ dùng POSTGRES_* để khởi tạo volume lần đầu. Khôi phục env đúng; nếu chủ đích đổi mật khẩu, vào psql với tài khoản quản trị và dùng `\password student_app`, rồi cập nhật .env/up -d. Không xóa volume để chữa lỗi đăng nhập |
@@ -345,11 +446,11 @@ Backup chứa cả index: nếu restore bản OPTIMIZED, đó vẫn là OPTIMIZE
 | Validate không đúng số lượng | Đối chiếu N thực bằng stats, env của container và `--count`; dùng `-v student_count=N` đúng hoặc recreate theo .env |
 | Validate báo index ngoài dự kiến | Xem stats/pg_indexes; baseline chỉ PK students. Drop index thử nghiệm bằng script, xử lý index lạ có chủ đích |
 
-## 11. Bàn giao và chuyển Mac → GitHub → Ubuntu
+## 11. Cập nhật source và bàn giao qua GitHub
 
 Người nhận chỉ cần chỉnh `.env` cho host, mật khẩu, port/bind và quy mô đã thống nhất. Không sửa Backend, SQL, Dockerfile hay frontend để thay đường dẫn máy. Endpoint benchmark: **GET /api/students/search?code=...**. Người tối ưu dùng explain/create-index/drop-index; người Linux xem DEPLOY_UBUNTU; [HANDOFF_FOR_TEAM](docs/HANDOFF_FOR_TEAM.md) chia rõ ba vai trò.
 
-Repo nhóm: [LinhMarky/server-performance-monitoring](https://github.com/LinhMarky/server-performance-monitoring). Nhánh bàn giao Web mẫu: `codex/student-academic-management`. Trên máy A (Mac), repository nằm **trong thư mục dự án này**. Kiểm tra `git rev-parse --show-toplevel` trước khi add để không nhầm repo cha/home. Khi có thay đổi cần cập nhật nhánh:
+Repo nhóm: [LinhMarky/server-performance-monitoring](https://github.com/LinhMarky/server-performance-monitoring). Nhánh bàn giao Web mẫu: `codex/student-academic-management`. Đoạn sau dành cho **người cập nhật source**, không cần chạy để chỉ cài Web trên Linux. Kiểm tra `git rev-parse --show-toplevel` trước khi add để không nhầm repo cha/home. Khi có thay đổi cần cập nhật nhánh:
 
 ```bash
 git switch codex/student-academic-management
@@ -361,6 +462,6 @@ git push -u origin codex/student-academic-management
 
 Không add `.env`, node_modules, backup hoặc dữ liệu Docker; kiểm tra `git status` trước commit. Không push thông tin đăng nhập. Nếu repository/remote đã tồn tại, dùng cấu hình hiện có, không chạy lại `remote add`.
 
-Trên máy B (Ubuntu): cài Docker theo tài liệu, clone, tạo .env riêng, build image native Linux, up, seed, validate, functional-check, kiểm tra BASELINE và gửi URL cùng JSON mã cho người viết benchmark.
+Người nhận trên Linux làm theo [bốn bước đầu README](#linux-quickstart): cài Docker, clone, tạo .env riêng, build image, up, seed, validate, functional-check, kiểm tra BASELINE và gửi URL cùng JSON mã cho người viết benchmark.
 
 **Docker volume không tự đi theo Git.** Máy mới phải **seed lại** bằng cùng N và source (dữ liệu xác định), hoặc **restore backup**. Không cần chuyển image Mac; build lại trên Linux. Không copy node_modules từ Mac. Ghi commit/image/config và không thay chúng giữa hai trạng thái. [Kết quả kiểm tra thực tế](docs/TEST_RESULTS.md) không thay phép đo chính thức của nhóm trên VPS.
