@@ -1,0 +1,53 @@
+services:
+  web:
+    image: student-performance-web:1.0.0
+    build: .
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-student_performance}
+      POSTGRES_USER: ${POSTGRES_USER:-student_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      DB_POOL_MAX: ${DB_POOL_MAX:-10}
+      DB_CONNECT_TIMEOUT_MS: ${DB_CONNECT_TIMEOUT_MS:-5000}
+      DB_STATEMENT_TIMEOUT_MS: ${DB_STATEMENT_TIMEOUT_MS:-15000}
+      STUDENT_COUNT: ${STUDENT_COUNT:-200000}
+    depends_on:
+      db:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  db:
+    image: postgres:17.9-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-student_performance}
+      POSTGRES_USER: ${POSTGRES_USER:-student_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      STUDENT_COUNT: ${STUDENT_COUNT:-200000}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database:/sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  postgres_data:

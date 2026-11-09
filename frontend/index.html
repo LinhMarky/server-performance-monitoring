@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#123eab">
+  <meta name="description" content="Hệ thống quản lý sinh viên và điểm học tập. Tra cứu hồ sơ, môn học và bảng điểm tín chỉ.">
+  <title>Student Academic Management System</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Bỏ qua điều hướng</a>
+  <aside class="sidebar" aria-label="Thanh điều hướng">
+    <a class="brand" href="#overview" aria-label="Academic — Tổng quan">
+      <span class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5L2 9Z"/><path d="M6 11v6c4 3 8 3 12 0v-6M22 9v7"/></svg></span>
+      <span>Academic<span class="brand-sub">STUDENT MANAGEMENT</span></span>
+    </a>
+    <div class="workspace-label">CỔNG THÔNG TIN HỌC VỤ</div>
+    <nav id="navigation" aria-label="Điều hướng chính"></nav>
+    <div class="sidebar-bottom">
+      <div class="sidebar-note"><span class="note-icon">?</span><strong>Thông tin trong tầm tay</strong><p>Tra cứu hồ sơ và theo dõi kết quả học tập tại một nơi.</p><a href="#search">Bắt đầu tra cứu <span aria-hidden="true">↗</span></a></div>
+      <div class="connection"><span id="connection-dot" class="status-dot"></span><span id="connection-text">Đang kiểm tra kết nối</span></div>
+      <div class="sidebar-footer">Đề tài 20 · Công nghệ nền tảng</div>
+    </div>
+  </aside>
+  <div class="app-shell">
+    <header class="topbar"><div class="system-title">Student Academic Management System<span>Hệ thống quản lý sinh viên và điểm học tập</span></div><div class="topbar-right"><span class="demo-label">KHÔNG GIAN DEMO</span><span class="avatar" aria-hidden="true">SV</span></div></header>
+    <main id="main" tabindex="-1"></main>
+    <footer class="page-footer"><span>Academic · Cổng thông tin sinh viên</span><span>Dữ liệu giả lập phục vụ học tập và nghiên cứu</span></footer>
+  </div>
+  <noscript>Vui lòng bật JavaScript để tra cứu sinh viên và bảng điểm.</noscript>
+</body>
+</html>
