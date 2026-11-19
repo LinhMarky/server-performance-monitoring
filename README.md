@@ -23,9 +23,9 @@ Các thành viên tiếp nhận qua [tài liệu bàn giao](docs/HANDOFF_FOR_TEA
 
 | Vai trò | Họ và tên | Mã sinh viên | Phần việc |
 |---|---|---|---|
-| SV1 | SV1 (họ tên) | 1 | Thiết kế benchmark và tiêu chí: `load-test/test.js`, pilot, chọn 3 mức tải |
-| SV2 | SV2 (họ tên) | 2 | Dựng máy chủ và thu số liệu nền: EC2, Docker, `monitoring/`, `monitor.sh`, `proc_monitor.sh` |
-| SV3 | SV3 (họ tên) | 3 | Áp dụng cải tiến có bằng chứng: EXPLAIN, `idx_students_code`, phân tích tiến trình |
+| SV1 | SV1 (họ tên) | 1 | Thiết kế benchmark và tiêu chí: `load-test/test.js` (cùng SV3), pilot, chọn 3 mức tải |
+| SV2 | SV2 (họ tên) | 2 | Dựng máy chủ và thu số liệu nền: EC2, Docker, `monitoring/` (Grafana cùng SV3), `monitor.sh`, `proc_monitor.sh` |
+| SV3 | SV3 (họ tên) | 3 | Áp dụng cải tiến có bằng chứng: Grafana (cùng SV2), `load-test/test.js` (cùng SV1), EXPLAIN, `idx_students_code`, phân tích tiến trình |
 | SV4 | SV4 (họ tên) | 4 | Lặp phép đo, thống kê và phản biện: `chay_do.ps1`, 18 lần đo, `phan_tich.py` |
 
 ### Phiên bản đã dùng khi đo (19/11/2026)
