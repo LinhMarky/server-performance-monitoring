@@ -1,0 +1,79 @@
+=== TAO INDEX 2026-11-19 04:41:13 UTC
+CREATE INDEX
+     indexname     |                                   indexdef                                   |  size   
+-------------------+------------------------------------------------------------------------------+---------
+ students_pkey     | CREATE UNIQUE INDEX students_pkey ON public.students USING btree (id)        | 4408 kB
+ idx_students_code | CREATE INDEX idx_students_code ON public.students USING btree (student_code) | 6184 kB
+(2 rows)
+
+
+=== KT1 SAU (optimized) 2026-11-19 04:41:13 UTC
+--- functional-check
+PASS health
+PASS database counts
+PASS stable backend pagination
+PASS all distributed benchmark codes and real timings
+PASS 404 for a well-formed absent code
+PASS validation and SQL injection protection
+PASS transcript, deterministic scores and weighted GPA
+PASS frontend assets and unknown route
+
+8 functional groups passed against http://127.0.0.1:3000. No index or data was changed.
+--- db.sh validate optimized
+ set_config 
+------------
+ 200000
+(1 row)
+
+ set_config 
+------------
+ optimized
+(1 row)
+
+psql:/sql/validate-data.sql:69: NOTICE:  PASS: 200000 students, 40 subjects, 1200000 grades; unique codes, six distinct subjects/student, scores, foreign keys, indexes (optimized).
+DO
+--- db.sh explain SV0199999
+                                                            QUERY PLAN                                                             
+-----------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..8.44 rows=1 width=94) (actual time=0.054..0.055 rows=1 loops=1)
+   Buffers: shared hit=3 read=1
+   ->  Index Scan using idx_students_code on students  (cost=0.42..8.44 rows=1 width=94) (actual time=0.053..0.053 rows=1 loops=1)
+         Index Cond: ((student_code)::text = 'SV0199999'::text)
+         Buffers: shared hit=3 read=1
+ Planning:
+   Buffers: shared hit=95 read=5
+ Planning Time: 0.448 ms
+ Execution Time: 0.082 ms
+(9 rows)
+
+--- db.sh stats
+ total_students | total_subjects | total_grades 
+----------------+----------------+--------------
+         200000 |             40 |      1200000
+(1 row)
+
+ table_name | heap_size  | indexes_size | total_size 
+------------+------------+--------------+------------
+ students   | 26 MB      | 10 MB        | 37 MB
+ subjects   | 8192 bytes | 16 kB        | 24 kB
+ grades     | 97 MB      | 47 MB        | 144 MB
+(3 rows)
+
+ experimental_index_size 
+-------------------------
+ 6184 kB
+(1 row)
+
+ database_size 
+---------------
+ 188 MB
+(1 row)
+
+ tablename |       indexname       |                                   indexdef                                   
+-----------+-----------------------+------------------------------------------------------------------------------
+ grades    | grades_pkey           | CREATE UNIQUE INDEX grades_pkey ON public.grades USING btree (id)
+ grades    | idx_grades_student_id | CREATE INDEX idx_grades_student_id ON public.grades USING btree (student_id)
+ students  | idx_students_code     | CREATE INDEX idx_students_code ON public.students USING btree (student_code)
+ students  | students_pkey         | CREATE UNIQUE INDEX students_pkey ON public.students USING btree (id)
+(4 rows)
+

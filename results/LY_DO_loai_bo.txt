@@ -1,0 +1,13 @@
+Các file trong thư mục này bị LOẠI khỏi phân tích (phan_tich.py chỉ đọc ket_qua_tho/, không đọc thư mục con).
+
+1) sau_50vu_lan2 (19/11/2026 12:56, dòng 20 nhat_ky_do.csv)
+   Lý do: lỗi mạng phía máy khách (laptop -> Internet), KHÔNG phải lỗi server.
+   Bằng chứng: k6 báo 1,32% lỗi, có request timeout 30s, thông lượng chỉ 19,9 req/s (lần 1 cùng mức: 36,9 req/s);
+   trong cùng thời gian server CPU rảnh 97-100%, chỉ ~9 kết nối TCP (50 VU lẽ ra ~50),
+   db_query_ms TB vẫn 1,6 ms. Ngay sau đó laptop không kết nối được server, đường hầm SSH Grafana bị ngắt,
+   truy cập google.com mất ~2s.
+
+2) sau_200vu_lan2_mon.csv (19/11/2026 13:00)
+   Lý do: lần đo không chạy được (chay_do.ps1 không kết nối được server ở bước kiểm tra đầu), chỉ còn file monitor dở dang 29 dòng.
+
+Cả hai lần được đo lại sau khi mạng ổn định, giữ nguyên tên lần đo.

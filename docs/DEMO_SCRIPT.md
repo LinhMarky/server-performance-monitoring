@@ -182,7 +182,7 @@ bash scripts/db.sh explain -v code=SV0199999
   - `Execution Time: ~119 ms` cho một lần tìm.
 - **Ghép ba bằng chứng lại:**
   1. **EXPLAIN:** mỗi lần tìm đều quét toàn bảng.
-  2. **CPU:** lên 96% ở 200 VU, trong khi steal bằng 0, tức là CPU bận thật chứ không bị AWS giới hạn.
+  2. **CPU:** lên **100%** suốt thời gian đo ở 200 VU (cả 3 lần đo), trong khi steal bằng 0, tức là CPU bận thật chứ không bị AWS giới hạn.
   3. **Thông lượng chạm trần:** tăng từ 100 lên 200 VU mà thông lượng chỉ tăng từ 53 lên 57 req/s, còn độ trễ tăng gấp 3.
 
   Kết luận: **nút thắt là CPU, do Seq Scan.**
@@ -219,7 +219,7 @@ bash scripts/db.sh explain -v code=SV0199999
 ```
 
 - **Để làm gì:** so sánh trực tiếp với Phần 4 để thấy cách PostgreSQL tìm dữ liệu đã đổi.
-- **Kết quả mong đợi:** `Index Scan using idx_students_code on students`, `Execution Time` **dưới 1 ms** (so với khoảng 119 ms lúc trước).
+- **Kết quả mong đợi:** `Index Scan using idx_students_code on students`, `Execution Time` **khoảng 0,08 ms** (so với khoảng 119 ms lúc trước), chỉ đọc 4 trang dữ liệu thay vì 3.351.
 - **Câu cần nói:** "Giống tra mục lục sách thay vì lật từng trang."
 
 ### 5.4. KT1 lần 2
@@ -244,9 +244,10 @@ k6 run -e VUS=200 -e WARMUP=10s -e DURATION=60s test.js
 - **Để làm gì:** cùng tải 200 người, cùng thời lượng, chỉ khác là đã có index, để thầy so trực tiếp với Phần 3.
 - **Chỉ trên Grafana:** CPU Busy thấp hẳn so với lần chạy ở Phần 3, cả hai lần đều thấy trong khung "Last 5 minutes".
 - **Kết quả mong đợi:**
-  - `db_query_ms avg` giảm từ khoảng 1,8 s xuống **vài ms**
-  - `http_reqs` tăng lên gần mức tối đa lý thuyết, khoảng 200 VU chia cho thời gian một vòng
-  - `http_req_duration` về gần mức nền mạng, khoảng 230–260 ms
+  - `db_query_ms avg` giảm từ khoảng 1,8 s xuống **khoảng 4 ms**
+  - `http_reqs` tăng từ khoảng 57/s lên **khoảng 150/s**
+  - `http_req_duration avg` giảm từ khoảng 2 s xuống **khoảng 190 ms**, gần mức nền của đường mạng tới Sydney
+  - (Số k6 in ra lúc demo hơi thấp hơn bảng chính thức vì có tính cả 10 giây khởi động.)
 
 ---
 
@@ -269,6 +270,34 @@ py -3.13 phan_tich.py
 | `so_sanh_*.png` | KT3 | Cột TB ± SD trước/sau |
 
 - **Quy tắc kết luận:** chỉ nói "cải thiện" khi khoảng TB ± SD trước và sau **không chồng nhau** (n = 3). CV dưới 10% nghĩa là các lần đo ổn định.
+
+### Kết quả chính thức (đo ngày 19/11/2026, TB ± SD, n = 3, đã bỏ 30s khởi động)
+
+| Chỉ số | Mức | Trước (không index) | Sau (có index) | Thay đổi | Kết luận |
+|---|---|---|---|---|---|
+| Thông lượng (req/s) | 10 VU | 7,05 ± 0,38 | 8,16 ± 0,08 | +16% | Cải thiện |
+| | 50 VU | 34,5 ± 1,0 | 40,4 ± 0,7 | +17% | Cải thiện |
+| | 200 VU | 60,2 ± 0,7 | **165,7 ± 0,3** | **+175%** | Cải thiện |
+| `db_query_ms` TB | 10 VU | 74,7 ± 6,0 ms | 0,73 ± 0,09 ms | −99,0% | Cải thiện |
+| | 50 VU | 128,9 ± 13,7 ms | 1,65 ± 0,36 ms | −98,7% | Cải thiện |
+| | 200 VU | 1.992 ± 30 ms | **4,13 ± 0,49 ms** | **−99,8%** | Cải thiện |
+| Độ trễ TB | 10 VU | 408 ± 80 ms | 208 ± 9 ms | −49% | Cải thiện |
+| | 50 VU | 434 ± 45 ms | 216 ± 26 ms | −50% | Cải thiện |
+| | 200 VU | 2.280 ± 34 ms | **191 ± 3 ms** | **−92%** | Cải thiện |
+| Độ trễ p95 | 10 VU | 715 ± 406 ms | 366 ± 38 ms | −49% | Chưa đủ bằng chứng |
+| | 50 VU | 693 ± 250 ms | 424 ± 161 ms | −39% | Chưa đủ bằng chứng |
+| | 200 VU | 2.570 ± 38 ms | 324 ± 19 ms | −87% | Cải thiện |
+| CPU bận TB | 10 VU | 20,6 ± 2,0% | 2,5 ± 0,0% | −88% | Cải thiện |
+| | 50 VU | 67,4 ± 3,3% | 4,1 ± 0,9% | −94% | Cải thiện |
+| | 200 VU | 100 ± 0% | **7,2 ± 0,3%** | −93% | Cải thiện |
+| Tỷ lệ lỗi | mọi mức | 0% | 0% (3 request lỗi / hơn 68.000 ở 200 VU) | | Không đổi |
+
+**Cách đọc:**
+- Ở 200 VU, server chuyển từ **quá tải** (CPU 100%, mỗi lần tra chờ khoảng 2,3 s) sang **dư sức** (CPU 7%, khoảng 190 ms, phần lớn là đường mạng). Thông lượng gần chạm mức tối đa lý thuyết: 200 VU / (0,19 s + 1 s nghỉ) ≈ 168 req/s.
+- Ở 10 và 50 VU, thông lượng chỉ tăng khoảng 16–17% vì server chưa quá tải. Mỗi VU vẫn nghỉ 1 giây giữa 2 lần tra nên thông lượng bị giới hạn bởi think time, không phải bởi server.
+- **p95 ở 10 và 50 VU "chưa đủ bằng chứng"**: p95 phụ thuộc nhiều vào mạng VN ↔ Sydney, các lần đo dao động mạnh (CV 36–57%), nên khoảng TB ± SD trước/sau chồng nhau. Nên nói thẳng điều này khi trình bày. Đây là điểm cộng cho phần phản biện.
+- Steal luôn ≤ 0,2%: EC2 không bị hết CPU credit trong lúc đo.
+- Có 1 lần đo bị loại (`sau_50vu_lan2` lúc 12:56) do lỗi mạng phía laptop: k6 báo lỗi, trong khi CPU server rảnh và ít kết nối TCP. Lần đó đã được đo lại. Bằng chứng ở `results/LY_DO_loai_bo.txt`.
 
 ### Xem dung lượng index (cho phần đánh đổi)
 

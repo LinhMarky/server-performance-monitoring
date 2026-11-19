@@ -1,0 +1,44 @@
+=== KT1 TRUOC (baseline) 2026-11-19 03:44:04 UTC
+--- functional-check
+PASS health
+PASS database counts
+PASS stable backend pagination
+PASS all distributed benchmark codes and real timings
+PASS 404 for a well-formed absent code
+PASS validation and SQL injection protection
+PASS transcript, deterministic scores and weighted GPA
+PASS frontend assets and unknown route
+
+8 functional groups passed against http://127.0.0.1:3000. No index or data was changed.
+--- db.sh validate
+ set_config 
+------------
+ 200000
+(1 row)
+
+ set_config 
+------------
+ baseline
+(1 row)
+
+psql:/sql/validate-data.sql:69: NOTICE:  PASS: 200000 students, 40 subjects, 1200000 grades; unique codes, six distinct subjects/student, scores, foreign keys, indexes (baseline).
+DO
+--- db.sh explain SV0199999
+                                                          QUERY PLAN                                                           
+-------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1000.00..5392.77 rows=1 width=94) (actual time=117.573..119.434 rows=1 loops=1)
+   Buffers: shared read=3351
+   ->  Gather  (cost=1000.00..5392.77 rows=1 width=94) (actual time=117.571..119.431 rows=1 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared read=3351
+         ->  Parallel Seq Scan on students  (cost=0.00..4392.67 rows=1 width=94) (actual time=112.902..112.902 rows=0 loops=3)
+               Filter: ((student_code)::text = 'SV0199999'::text)
+               Rows Removed by Filter: 66666
+               Buffers: shared read=3351
+ Planning:
+   Buffers: shared hit=73 read=5
+ Planning Time: 3.587 ms
+ Execution Time: 119.476 ms
+(14 rows)
+
