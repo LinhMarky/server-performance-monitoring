@@ -45,3 +45,13 @@ Tên file phải trùng tên lần đo k6 (`_k6.csv` → `_mon.csv`). Cột ghi 
 - Bật bộ giám sát **trước** lần đo đầu tiên và giữ chạy suốt cả trước lẫn sau, để phần tài nguyên nó tốn (khoảng 125 MB RAM) như nhau ở hai trạng thái.
 - Không mở nhiều dashboard nặng trong lúc k6 đang chạy, vì Grafana/Prometheus dùng chung CPU với server đang đo.
 - Tắt: `docker compose down` (số liệu giữ trong volume).
+
+## proc_monitor.sh (số liệu theo tiến trình)
+
+```bash
+cp proc_monitor.sh ~/ && chmod +x ~/proc_monitor.sh
+cd ~/do_dac && sudo ~/proc_monitor.sh bs_truoc_200vu     # bật trước k6; dừng: sudo pkill -INT -f '[p]roc_monitor.sh bs_truoc_200vu'
+```
+Chạy bằng `sudo` để `pidstat` đọc được I/O của mọi tiến trình. Tạo 3 file: `<tên>_pidstat.txt` (`pidstat -h -u -r -d 1`: %CPU, %wait, RSS, kB đọc/ghi từng tiến trình), `<tên>_docker.csv` (CPU/RAM từng container), `<tên>_pg.csv` (số kết nối/truy vấn đang chạy/chờ khóa trong PostgreSQL, mỗi 2 giây). Phân tích bằng `load-test/phan_tich_tien_trinh.py`.
+
+Lưu ý: tổng %CPU cộng từ `pidstat` bị thiếu khi có nhiều tiến trình ngắn (worker của Parallel Seq Scan), nên CPU theo container lấy từ `docker stats`. Node.js hiện trong `pidstat` với tên luồng `MainThread`.

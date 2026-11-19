@@ -1,0 +1,11 @@
+﻿trang_thai,container,cpu_pct_tb,ram_mb_tb
+truoc,db (PostgreSQL),177.8,200.0
+truoc,web (Node.js),4.6,112.0
+truoc,Prometheus,0.1,56.0
+truoc,Grafana,0.1,61.0
+truoc,node-exporter,0.4,22.0
+sau,db (PostgreSQL),10.4,184.0
+sau,web (Node.js),6.6,110.0
+sau,Prometheus,0.1,56.0
+sau,Grafana,0.1,61.0
+sau,node-exporter,0.3,22.0

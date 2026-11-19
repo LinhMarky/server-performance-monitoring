@@ -1,0 +1,4 @@
+Đợt đo bổ sung 19/11/2026 13:52–14:57 bị LOẠI.
+Nguyên nhân: laptop ngủ/mất mạng (lần đo 2,5 phút kéo dài 17 phút; nghỉ 60s thành 45 phút; ssh báo "connect ... Unknown error").
+Hệ quả: bs_sau_200vu chỉ 14,7 req/s (bình thường ~150); lệnh drop-index thất bại nên bs_truoc_200vu thực chất vẫn có index (db_query_ms 6 ms, lỗi 6,29%).
+Đã đo lại với script chống ngủ + kiểm tra trạng thái index trước khi đo.

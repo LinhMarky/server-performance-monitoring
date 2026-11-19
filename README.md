@@ -14,9 +14,50 @@ Các thành viên tiếp nhận qua [tài liệu bàn giao](docs/HANDOFF_FOR_TEA
 
 | Thư mục / file | Nội dung |
 |---|---|
-| [`load-test/`](load-test/README.md) | Kịch bản k6 `test.js`, `chay_do.ps1` (chạy một lần đo, ghi nhật ký), `phan_tich.py` (TB/SD/CV, so sánh trước/sau, biểu đồ). [Giải thích chi tiết test.js](load-test/GIAI_THICH_test_js.md) |
-| [`monitoring/`](monitoring/README.md) | Docker Compose cho node-exporter + Prometheus + Grafana trên server, và `monitor.sh` ghi tài nguyên mỗi giây |
+| [`load-test/`](load-test/README.md) | Kịch bản k6 `test.js`, `chay_do.ps1` (chạy một lần đo, ghi nhật ký), `phan_tich.py` (TB/SD/CV, so sánh trước/sau, biểu đồ), `phan_tich_tien_trinh.py` (số liệu theo tiến trình). [Giải thích chi tiết test.js](load-test/GIAI_THICH_test_js.md) |
+| [`monitoring/`](monitoring/README.md) | Docker Compose cho node-exporter + Prometheus + Grafana trên server; `monitor.sh` ghi tài nguyên mỗi giây; `proc_monitor.sh` ghi CPU/%wait/I/O theo tiến trình và container |
+| [`results/`](results/README.md) | Kết quả 18 lần đo trước/sau index, bảng thống kê, biểu đồ KT2/KT3, KT1, số liệu tiến trình (`results/tien_trinh/`) |
 | [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) | Kịch bản demo từng bước: câu lệnh, để làm gì, kết quả mong đợi |
+
+### Thành viên nhóm (Đề tài 20)
+
+| Vai trò | Họ và tên | Mã sinh viên | Phần việc |
+|---|---|---|---|
+| SV1 | SV1 (họ tên) | 1 | Thiết kế benchmark và tiêu chí: `load-test/test.js`, pilot, chọn 3 mức tải |
+| SV2 | SV2 (họ tên) | 2 | Dựng máy chủ và thu số liệu nền: EC2, Docker, `monitoring/`, `monitor.sh`, `proc_monitor.sh` |
+| SV3 | SV3 (họ tên) | 3 | Áp dụng cải tiến có bằng chứng: EXPLAIN, `idx_students_code`, phân tích tiến trình |
+| SV4 | SV4 (họ tên) | 4 | Lặp phép đo, thống kê và phản biện: `chay_do.ps1`, 18 lần đo, `phan_tich.py` |
+
+### Phiên bản đã dùng khi đo (19/11/2026)
+
+| Thành phần | Phiên bản / cấu hình |
+|---|---|
+| Máy chủ | AWS EC2 t3.small (2 vCPU Xeon 8259CL, 1,9 GB RAM, EBS 20 GB), Ubuntu 24.04.5 LTS, kernel 7.0.0-1017-aws |
+| Container | Docker 29.10.0, Compose v5.7.1; `postgres:17.9-bookworm`; `student-performance-web:1.0.0` (Node.js 24.14.1, Express 5.2.1, pg 8.20.0) |
+| Giám sát | node-exporter v1.8.2, Prometheus v2.53.2, Grafana 11.2.0, sysstat 12.6.1 |
+| Máy khách | Windows 11, i7-12700H, 16 GB RAM, Wi-Fi; k6 v2.4.0; Python 3.13.3 + pandas 3.0.6, numpy 2.5.3, matplotlib 3.11.2, openpyxl 3.1.5 |
+
+### Dựng lại và chạy kiểm thử (tóm tắt)
+
+```bash
+# Máy chủ: ứng dụng (chi tiết ở các mục 2–7 bên dưới)
+docker compose up -d --build --wait && bash scripts/seed.sh
+bash scripts/functional-check.sh && bash scripts/db.sh validate      # KT1
+# Máy chủ: giám sát (chi tiết monitoring/README.md)
+cd monitoring && echo "GF_ADMIN_PASSWORD=$(openssl rand -hex 8)" > .env && docker compose up -d
+sudo apt install -y sysstat && cp monitor.sh proc_monitor.sh ~/ && chmod +x ~/monitor.sh ~/proc_monitor.sh
+```
+```powershell
+# Máy khách (thư mục load-test): một lần đo, rồi phân tích
+.\chay_do.ps1 -TrangThai truoc -VUS 50 -Lan 1      # bật ~/monitor.sh truoc_50vu_lan1_mon.csv trên máy chủ trước
+py -3.13 phan_tich.py
+```
+```bash
+# Máy chủ: cải tiến và quay lại trạng thái gốc
+bash scripts/db.sh create-index && bash scripts/db.sh validate -v expected_mode=optimized
+bash scripts/db.sh drop-index && bash scripts/db.sh validate
+```
+Sơ đồ hệ thống: [`docs/so_do_he_thong.png`](docs/so_do_he_thong.png). Dữ liệu đo gốc (k6 CSV, monitor CSV, pidstat; khoảng 230 MB) nộp riêng trong gói `DE20_du_lieu_goc.zip`, không đưa lên Git.
 
 <a id="linux-quickstart"></a>
 

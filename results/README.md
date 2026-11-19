@@ -46,3 +46,18 @@
 | `bieu_do/kt2_*.png` | KT2: thông lượng, p95, CPU/iowait/steal theo từng giây của mỗi lần đo |
 
 Số liệu thô (k6 CSV khoảng 170 MB, monitor CSV) không đưa lên repo. Tạo lại bảng và biểu đồ bằng `load-test/phan_tich.py`.
+
+## Số liệu theo tiến trình (đo bổ sung, `tien_trinh/`)
+
+Hai lần đo bổ sung ở 200 VU (cùng kịch bản 30 s + 120 s): sau index lúc 15:14, trước index lúc 15:22 (19/11/2026), có `proc_monitor.sh`. Chỉ dùng làm bằng chứng tiến trình, không đưa vào bảng 18 lần đo.
+
+| Chỉ số (200 VU) | Trước | Sau |
+|---|---|---|
+| CPU container db (PostgreSQL), docker stats | 177,8% / 200% | 10,4% |
+| CPU container web (Node.js) | 4,6% | 6,6% |
+| %wait TB tiến trình postgres (chờ CPU) | 41,2% | 0,4% |
+| Truy vấn đang chạy đồng thời (TB / tối đa) | 14,0 / 17 | 0,0 / 1 |
+| Load average 1 phút | 11,44 | 0,57 |
+| I/O đĩa của postgres; truy vấn chờ khóa | 0 kB/s; 0 | 0 kB/s; 0 |
+
+Đợt đo bổ sung đầu tiên (13:52–14:57) bị loại vì laptop ngủ giữa chừng: `tien_trinh/LY_DO_dot_bo_sung_bi_loai.txt`.

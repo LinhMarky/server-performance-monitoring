@@ -1,0 +1,30 @@
+2026-11-19 15:12:53 | === DO BO SUNG SO LIEU TIEN TRINH (lan 2) ===
+2026-11-19 15:12:56 | Co index luc bat dau: True
+2026-11-19 15:12:56 | Nghi 60s
+2026-11-19 15:13:59 | BAT DAU bs_sau_200vu (200 VU, warmup 30s, do 120s); co index = True
+2026-11-19 15:16:39 | checks_succeeded...: 99.99% 43292 out of 43294
+2026-11-19 15:16:39 | db_query_ms....................: avg=4.25ms   min=257µs    med=2.84ms   p(90)=9.54ms   p(95)=13.18ms  p(99)=24.27ms max=57.49ms
+2026-11-19 15:16:39 | http_req_duration..............: avg=246.22ms min=0s       med=196.29ms p(90)=318.52ms p(95)=444.61ms p(99)=1.12s   max=2.73s
+2026-11-19 15:16:39 | http_req_failed................: 0.00%  1 out of 21648
+2026-11-19 15:16:39 | http_reqs......................: 21648  142.920124/s
+2026-11-19 15:17:00 | XONG bs_sau_200vu epoch 1795076044 -> 1795076199 (155 s)
+2026-11-19 15:17:00 | XOA INDEX de do trang thai truoc
+2026-11-19 15:17:07 | LOI SSH (1): 0
+2026-11-19 15:17:09 | LOI SSH (1): 0
+2026-11-19 15:19:46 | === DO BO SUNG SO LIEU TIEN TRINH (lan 2) ===
+2026-11-19 15:19:49 | Co index luc bat dau: False
+2026-11-19 15:19:49 | Nghi 60s
+2026-11-19 15:20:49 | bs_sau_200vu da co (hop le), bo qua
+2026-11-19 15:20:49 | XOA INDEX de do trang thai truoc
+2026-11-19 15:20:54 | Da xoa index (baseline)
+2026-11-19 15:20:54 | Nghi 60s
+2026-11-19 15:21:57 | BAT DAU bs_truoc_200vu (200 VU, warmup 30s, do 120s); co index = False
+2026-11-19 15:24:38 | checks_succeeded...: 100.00% 16440 out of 16440
+2026-11-19 15:24:38 | db_query_ms....................: avg=2.13s min=963µs    med=2.34s p(90)=2.59s p(95)=2.66s p(99)=2.79s max=3.04s
+2026-11-19 15:24:38 | http_req_duration..............: avg=2.31s min=150.91ms med=2.52s p(90)=2.78s p(95)=2.86s p(99)=3.01s max=3.37s
+2026-11-19 15:24:38 | http_req_failed................: 0.00%  0 out of 8221
+2026-11-19 15:24:38 | http_reqs......................: 8221   53.455343/s
+2026-11-19 15:25:05 | XONG bs_truoc_200vu epoch 1795076522 -> 1795076678 (156 s)
+2026-11-19 15:25:07 | TAO LAI INDEX (tra server ve trang thai optimized)
+2026-11-19 15:25:12 | Co index luc ket thuc: True
+2026-11-19 15:25:12 | === KET THUC ===
