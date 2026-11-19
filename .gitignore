@@ -9,3 +9,7 @@ backups/
 test-results/
 coverage/
 benchmark-data/*.tmp
+*.pem
+load-test/ket_qua_tho/
+load-test/ket_qua_phan_tich/
+load-test/nhat_ky_do.csv

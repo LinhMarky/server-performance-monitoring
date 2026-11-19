@@ -8,7 +8,15 @@ Giao diện tiếng Việt có dashboard, danh sách phân trang, tra cứu mã 
 
 **Trạng thái bàn giao là BASELINE:** cố ý chưa có index hay UNIQUE trên `students.student_code`; chỉ `students.id` là PK. Nhóm đo tìm kiếm trước, sau đó người phụ trách tối ưu tự tạo `idx_students_code` và đo lại. Index `grades(student_id)` luôn có. Đây là thí nghiệm có kiểm soát; production thực tế nên có ràng buộc duy nhất cho mã sinh viên và xác thực/phân quyền phù hợp.
 
-Không chứa k6/Locust, Prometheus, Grafana, Node Exporter, AI chẩn đoán, phân tích tải hay báo cáo benchmark chính thức. Các thành viên tiếp nhận qua [tài liệu bàn giao](docs/HANDOFF_FOR_TEAM.md) và [API](docs/API_REFERENCE.md).
+Các thành viên tiếp nhận qua [tài liệu bàn giao](docs/HANDOFF_FOR_TEAM.md) và [API](docs/API_REFERENCE.md).
+
+**Phần đo tải và giám sát** (thêm sau bàn giao, tách riêng khỏi ứng dụng web):
+
+| Thư mục / file | Nội dung |
+|---|---|
+| [`load-test/`](load-test/README.md) | Kịch bản k6 `test.js`, `chay_do.ps1` (chạy một lần đo, ghi nhật ký), `phan_tich.py` (TB/SD/CV, so sánh trước/sau, biểu đồ). [Giải thích chi tiết test.js](load-test/GIAI_THICH_test_js.md) |
+| [`monitoring/`](monitoring/README.md) | Docker Compose cho node-exporter + Prometheus + Grafana trên server, và `monitor.sh` ghi tài nguyên mỗi giây |
+| [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) | Kịch bản demo từng bước: câu lệnh, để làm gì, kết quả mong đợi |
 
 <a id="linux-quickstart"></a>
 
